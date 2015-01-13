@@ -1,9 +1,6 @@
-#!/usr/bin/env ruby
-
 ##
 # Asana API library and command-line client
 # Tommy MacWilliam <tmacwilliam@cs.harvard.edu>
-#
 #
 
 require "rubygems"
