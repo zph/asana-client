@@ -140,17 +140,17 @@ module Asana
 
   # perform a GET request and return the response body as an object
   def self.get(url)
-    return Asana.http_request(Net::HTTP::Get, url, nil, nil)
+    Asana.http_request(Net::HTTP::Get, url, nil, nil)
   end
 
   # perform a PUT request and return the response body as an object
   def self.put(url, data, query = nil)
-    return Asana.http_request(Net::HTTP::Put, url, data, query)
+    Asana.http_request(Net::HTTP::Put, url, data, query)
   end
 
   # perform a POST request and return the response body as an object
   def self.post(url, data, query = nil)
-    return Asana.http_request(Net::HTTP::Post, url, data, query)
+    Asana.http_request(Net::HTTP::Post, url, data, query)
   end
 
   # perform an HTTP request to the Asana API
@@ -175,29 +175,26 @@ module Asana
     res = http.start { |http| http.request req  }
 
     # return request object
-    return JSON.parse(res.body)
+    JSON.parse(res.body)
   end
 
   # get all of the users workspaces
   def self.workspaces
     spaces = self.get "workspaces"
-    list = []
 
     # convert array to hash indexed on workspace name
-    spaces["data"].each do |space|
-      list.push Workspace.new :id => space["id"], :name => space["name"]
+    spaces["data"].map do |space|
+      Workspace.new :id => space["id"], :name => space["name"]
     end
-
-    list
   end
 
   class Project
     attr_accessor :id, :name, :workspace
 
     def initialize(hash)
-      self.id = hash[:id] || 0
-      self.name = hash[:name] || ""
-      self.workspace = hash[:workspace] || nil
+      @id = hash[:id] || 0
+      @name = hash[:name] || ""
+      @workspace = hash[:workspace] || nil
     end
 
     # search for a project within a workspace
@@ -210,36 +207,35 @@ module Asana
       # check if any workspace contains the given name, and return first hit
       name.downcase!
       if workspace
-        workspace.projects.each do |project|
-          if project.name.downcase.include? name
-            return project
-          end
+        workspace.projects.map do |project|
+          project.name.downcase.include? name.downcase
         end
       end
-
-      nil
     end
 
     # get all tasks associated with the current project
     def tasks(completed, mine)
       lookup = "tasks?project=#{self.id}"
-        if mine
-          # because we cannot filter on project & assignee
-          lookup += "&opt_fields=name,assignee"
-        end
-      if not completed
+      if mine
+        # because we cannot filter on project & assignee
+        lookup += "&opt_fields=name,assignee"
+      end
+
+      if !completed
         lookup += "&completed_since=now"
       end
-      task_objects = Asana.get lookup
-      list = []
 
-      task_objects["data"].each do |task|
+      task_objects = Asana.get lookup
+
+      task_objects["data"].map do |task|
         if mine and (task["assignee"] == nil or task["assignee"]["id"] != mine)
           next
         end
 
-        list.push Task.new :id => task["id"], :name => task["name"],
-          :workspace => self.workspace, :project => self
+        Task.new(:id => task["id"],
+                 :name => task["name"],
+                 :workspace => self.workspace,
+                 :project => self)
       end
 
       list
@@ -327,8 +323,8 @@ module Asana
 
       # check if any workspace contains the given name, and return first hit
       name.downcase!
-      workspace.users.each do |user|
-        if user.name.downcase.include? name
+      workspace.users.find do |user|
+        user.name.downcase.include? name
           return user
         end
       end
@@ -345,18 +341,15 @@ module Asana
     attr_accessor :id, :name
 
     def initialize(hash)
-      self.id = hash[:id] || 0
-      self.name = hash[:name] || ""
+      @id = hash[:id] || 0
+      @name = hash[:name] || ""
     end
 
     # search a workspace by name
     def self.find(name)
       # check if any workspace contains the given name, and return first hit
-      name.downcase!
-      Asana.workspaces.each do |workspace|
-        if workspace.name.downcase.include? name
-          return workspace
-        end
+      Asana.workspaces.find do |workspace|
+        workspace.name.downcase.include? name.downcase
       end
 
       nil
@@ -365,13 +358,10 @@ module Asana
     # get all projects associated with a workspace
     def projects
       project_objects = Asana.get "projects?workspace=#{self.id}"
-        list = []
 
-      project_objects["data"].each do |project|
-        list.push Project.new :id => project["id"], :name => project["name"], :workspace => self
+      project_objects["data"].map do |project|
+        Project.new :id => project["id"], :name => project["name"], :workspace => self
       end
-
-      list
     end
 
     # get tasks within this workspace
@@ -384,26 +374,19 @@ module Asana
         lookup += "&completed_since=now"
       end
       task_objects = Asana.get lookup
-      list = []
 
-      task_objects["data"].each do |task|
-        list.push Task.new :id => task["id"], :name => task["name"],
-          :workspace => self
+      task_objects["data"].map do |task|
+        Task.new :id => task["id"], :name => task["name"], :workspace => self
       end
-
-      list
     end
 
     # get all users in the workspace
     def users
       user_objects = Asana.get "workspaces/#{self.id}/users"
-        list = []
 
-      user_objects["data"].each do |user|
-        list.push User.new :id => user["id"], :name => user["name"]
+      user_objects["data"].map do |user|
+        User.new :id => user["id"], :name => user["name"]
       end
-
-      list
     end
   end
 end
