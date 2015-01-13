@@ -168,16 +168,16 @@ module Asana
     http.verify_mode = OpenSSL::SSL::VERIFY_PEER
 
     # all requests are json
-    header = {
-      "Content-Type" => "application/json"
-    }
+    header = { "Content-Type" => "application/json" }
 
     # make request
     req = type.new("#{uri.path}?#{uri.query}", header)
-      req.basic_auth @@config, ''
+    req.basic_auth @@config, ''
+
     if req.respond_to?(:set_form_data) && !data.nil?
       req.set_form_data data
     end
+
     res = http.start { |http| http.request req  }
 
     # return request object
@@ -186,10 +186,9 @@ module Asana
 
   # get all of the users workspaces
   def self.workspaces
-    spaces = self.get "workspaces"
 
     # convert array to hash indexed on workspace name
-    spaces["data"].map do |space|
+    get("workspaces")["data"].map do |space|
       Workspace.new :id => space["id"], :name => space["name"]
     end
   end
