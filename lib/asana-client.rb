@@ -1,7 +1,7 @@
 ##
 # Asana API library and command-line client
 # Tommy MacWilliam <tmacwilliam@cs.harvard.edu>
-#
+##
 
 require "json"
 require "net/https"
@@ -9,8 +9,11 @@ require "yaml"
 # TODO replace with Time?
 require "chronic"
 
-module Asana
+%w[project task user workspace].each do |req|
+  require_relative req
+end
 
+module Asana
   API_URL = "https://app.asana.com/api/1.0/"
   @show_completed = false
   @show_mine = false
@@ -18,7 +21,10 @@ module Asana
   # initialize config values
   def self.init
     begin
-      @@config = YAML.load_file File.expand_path "~/.asana-client"
+      @@config = ENV.fetch('ASANA_API_TOKEN') do
+        YAML.load_file(File.expand_path "~/.asana-client")["api-key"]
+      end
+
     rescue
       abort "Configuration file could not be found.\nSee https://github.com/tmacwill/asana-client for installation instructions."
     end
@@ -168,7 +174,7 @@ module Asana
 
     # make request
     req = type.new("#{uri.path}?#{uri.query}", header)
-      req.basic_auth @@config["api_key"], ''
+      req.basic_auth @@config, ''
     if req.respond_to?(:set_form_data) && !data.nil?
       req.set_form_data data
     end
@@ -188,207 +194,6 @@ module Asana
     end
   end
 
-  class Project
-    attr_accessor :id, :name, :workspace
-
-    def initialize(hash)
-      @id = hash[:id] || 0
-      @name = hash[:name] || ""
-      @workspace = hash[:workspace] || nil
-    end
-
-    # search for a project within a workspace
-    def self.find(workspace, name)
-      # if given string for workspace, convert to object
-      if workspace.is_a? String
-        workspace = Asana::Workspace.find workspace
-      end
-
-      # check if any workspace contains the given name, and return first hit
-      name.downcase!
-      if workspace
-        workspace.projects.map do |project|
-          project.name.downcase.include? name.downcase
-        end
-      end
-    end
-
-    # get all tasks associated with the current project
-    def tasks(completed, mine)
-      lookup = "tasks?project=#{self.id}"
-      if mine
-        # because we cannot filter on project & assignee
-        lookup += "&opt_fields=name,assignee"
-      end
-
-      if !completed
-        lookup += "&completed_since=now"
-      end
-
-      task_objects = Asana.get lookup
-
-      task_objects["data"].map do |task|
-        if mine and (task["assignee"] == nil or task["assignee"]["id"] != mine)
-          next
-        end
-
-        Task.new(:id => task["id"],
-                 :name => task["name"],
-                 :workspace => self.workspace,
-                 :project => self)
-      end
-
-      list
-    end
-  end
-
-  class Task
-    attr_accessor :id, :name, :workspace, :project
-
-    def initialize(hash)
-      self.id = hash[:id] || 0
-      self.name = hash[:name] || ""
-      self.workspace = hash[:workspace] || nil
-      self.project = hash[:project] || nil
-    end
-
-    # create a new task on the server
-    def self.create(workspace, name, assignee = nil, due = nil)
-      # if given string for workspace, convert to object
-      if workspace.is_a? String
-        workspace = Asana::Workspace.find workspace
-      end
-      abort "Workspace not found" unless workspace
-
-      # if assignee was given, get user
-      if !assignee.nil?
-        assignee = Asana::User.find workspace, assignee
-        abort "Assignee not found" unless assignee
-      end
-
-      # add task to workspace
-      params = {
-        "workspace" => workspace.id,
-        "name" => name,
-        "assignee" => (assignee.nil?) ? "me" : assignee.id
-      }
-
-      # attach due date if given
-      if !due.nil?
-        params["due_on"] = due
-      end
-
-      # add task to workspace
-      Asana.post "tasks", params
-    end
-
-    # comment on a task
-    def self.comment(id, text)
-      Asana.post "tasks/#{id}/stories", { "text" => text }
-    end
-
-    # comment on the current task
-    def comment(text)
-      self.comment(self.id, text)
-    end
-
-    # finish a task
-    def self.finish(id)
-      Asana.put "tasks/#{id}", { "completed" => true }
-    end
-
-    # finish the current task
-    def finish
-      self.finish(self.id)
-    end
-
-    def to_s
-      "(#{self.id}) #{self.name}"
-    end
-  end
-
-  class User
-    attr_accessor :id, :name
-
-    def initialize(hash)
-      self.id = hash[:id] || 0
-      self.name = hash[:name] || ""
-    end
-
-    def self.find(workspace, name)
-      # if given string for workspace, convert to object
-      if workspace.is_a? String
-        workspace = Asana::Workspace.find workspace
-      end
-
-      # check if any workspace contains the given name, and return first hit
-      name.downcase!
-      workspace.users.find do |user|
-        user.name.downcase.include? name
-          return user
-        end
-      end
-
-      nil
-    end
-
-    def to_s
-      self.name
-    end
-  end
-
-  class Workspace
-    attr_accessor :id, :name
-
-    def initialize(hash)
-      @id = hash[:id] || 0
-      @name = hash[:name] || ""
-    end
-
-    # search a workspace by name
-    def self.find(name)
-      # check if any workspace contains the given name, and return first hit
-      Asana.workspaces.find do |workspace|
-        workspace.name.downcase.include? name.downcase
-      end
-
-      nil
-    end
-
-    # get all projects associated with a workspace
-    def projects
-      project_objects = Asana.get "projects?workspace=#{self.id}"
-
-      project_objects["data"].map do |project|
-        Project.new :id => project["id"], :name => project["name"], :workspace => self
-      end
-    end
-
-    # get tasks within this workspace
-    def tasks(completed)
-      lookup = "tasks?workspace=#{self.id}"
-        # -m can't be supported because the API requires that we
-        # always set the assignee for workspaces.
-        lookup += "&assignee=me"
-      if not completed
-        lookup += "&completed_since=now"
-      end
-      task_objects = Asana.get lookup
-
-      task_objects["data"].map do |task|
-        Task.new :id => task["id"], :name => task["name"], :workspace => self
-      end
-    end
-
-    # get all users in the workspace
-    def users
-      user_objects = Asana.get "workspaces/#{self.id}/users"
-
-      user_objects["data"].map do |user|
-        User.new :id => user["id"], :name => user["name"]
-      end
-    end
-  end
 end
 
 
