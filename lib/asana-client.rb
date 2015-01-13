@@ -3,10 +3,10 @@
 # Tommy MacWilliam <tmacwilliam@cs.harvard.edu>
 #
 
-require "rubygems"
 require "json"
 require "net/https"
 require "yaml"
+# TODO replace with Time?
 require "chronic"
 
 module Asana
@@ -16,7 +16,7 @@ module Asana
     @show_mine = false
 
     # initialize config values
-    def Asana.init
+    def self.init
         begin
             @@config = YAML.load_file File.expand_path "~/.asana-client"
         rescue
@@ -25,7 +25,7 @@ module Asana
     end
 
     # parse argumens
-    def Asana.parse(args)
+    def self.parse(args)
         # no arguments given
         if args.empty?
             abort "Nothing to do here."
@@ -110,7 +110,7 @@ module Asana
 
         # workspace task name: create task in that workspace
         if scope =~ /^([^\/]+)$/
-            # get corresponding workspace 
+            # get corresponding workspace
             workspace = Asana::Workspace.find $1
 
             # create task in workspace
@@ -121,7 +121,7 @@ module Asana
 
         # workspace/project task name: create task in that workspace
         if scope =~ /^([^\/]+)\/(.+)$/
-            # get corresponding workspace 
+            # get corresponding workspace
             workspace = Asana::Workspace.find $1
 
             # create task in workspace
@@ -139,22 +139,22 @@ module Asana
     end
 
     # perform a GET request and return the response body as an object
-    def Asana.get(url)
+    def self.get(url)
         return Asana.http_request(Net::HTTP::Get, url, nil, nil)
     end
 
     # perform a PUT request and return the response body as an object
-    def Asana.put(url, data, query = nil)
+    def self.put(url, data, query = nil)
         return Asana.http_request(Net::HTTP::Put, url, data, query)
     end
 
     # perform a POST request and return the response body as an object
-    def Asana.post(url, data, query = nil)
+    def self.post(url, data, query = nil)
         return Asana.http_request(Net::HTTP::Post, url, data, query)
     end
 
     # perform an HTTP request to the Asana API
-    def Asana.http_request(type, url, data, query)
+    def self.http_request(type, url, data, query)
         # set up http object
         uri = URI.parse API_URL + url
         http = Net::HTTP.new uri.host, uri.port
@@ -170,7 +170,7 @@ module Asana
         req = type.new("#{uri.path}?#{uri.query}", header)
         req.basic_auth @@config["api_key"], ''
         if req.respond_to?(:set_form_data) && !data.nil?
-            req.set_form_data data 
+            req.set_form_data data
         end
         res = http.start { |http| http.request req  }
 
@@ -179,8 +179,8 @@ module Asana
     end
 
     # get all of the users workspaces
-    def Asana.workspaces
-        spaces = self.get "workspaces" 
+    def self.workspaces
+        spaces = self.get "workspaces"
         list = []
 
         # convert array to hash indexed on workspace name
@@ -204,7 +204,7 @@ module Asana
         def self.find(workspace, name)
             # if given string for workspace, convert to object
             if workspace.is_a? String
-                workspace = Asana::Workspace.find workspace 
+                workspace = Asana::Workspace.find workspace
             end
 
             # check if any workspace contains the given name, and return first hit
@@ -260,23 +260,23 @@ module Asana
         def self.create(workspace, name, assignee = nil, due = nil)
             # if given string for workspace, convert to object
             if workspace.is_a? String
-                workspace = Asana::Workspace.find workspace 
+                workspace = Asana::Workspace.find workspace
             end
             abort "Workspace not found" unless workspace
 
             # if assignee was given, get user
             if !assignee.nil?
-                assignee = Asana::User.find workspace, assignee 
+                assignee = Asana::User.find workspace, assignee
                 abort "Assignee not found" unless assignee
             end
 
             # add task to workspace
             params = {
-                "workspace" => workspace.id, 
+                "workspace" => workspace.id,
                 "name" => name,
                 "assignee" => (assignee.nil?) ? "me" : assignee.id
             }
-    
+
             # attach due date if given
             if !due.nil?
                 params["due_on"] = due
@@ -322,7 +322,7 @@ module Asana
         def self.find(workspace, name)
             # if given string for workspace, convert to object
             if workspace.is_a? String
-                workspace = Asana::Workspace.find workspace 
+                workspace = Asana::Workspace.find workspace
             end
 
             # check if any workspace contains the given name, and return first hit
