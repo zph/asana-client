@@ -146,17 +146,17 @@ module Asana
 
   # perform a GET request and return the response body as an object
   def self.get(url)
-    Asana.http_request(Net::HTTP::Get, url, nil, nil)
+    http_request(Net::HTTP::Get, url, nil, nil)
   end
 
   # perform a PUT request and return the response body as an object
   def self.put(url, data, query = nil)
-    Asana.http_request(Net::HTTP::Put, url, data, query)
+    http_request(Net::HTTP::Put, url, data, query)
   end
 
   # perform a POST request and return the response body as an object
   def self.post(url, data, query = nil)
-    Asana.http_request(Net::HTTP::Post, url, data, query)
+    http_request(Net::HTTP::Post, url, data, query)
   end
 
   # perform an HTTP request to the Asana API
@@ -193,11 +193,4 @@ module Asana
       Workspace.new :id => space["id"], :name => space["name"]
     end
   end
-
-end
-
-
-if __FILE__ == $0
-  Asana.init
-  Asana.parse ARGV
 end
