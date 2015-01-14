@@ -3,10 +3,10 @@ module Asana
     attr_accessor :id, :name, :workspace, :project
 
     def initialize(hash)
-      self.id = hash[:id] || 0
-      self.name = hash[:name] || ""
-      self.workspace = hash[:workspace] || nil
-      self.project = hash[:project] || nil
+      @id         = hash[:id] || 0
+      @name       = hash[:name] || ""
+      @workspace  = hash[:workspace] || nil
+      @project    = hash[:project] || nil
     end
 
     # create a new task on the server
@@ -15,33 +15,31 @@ module Asana
       if workspace.is_a? String
         workspace = Asana::Workspace.find workspace
       end
+
       abort "Workspace not found" unless workspace
 
       # if assignee was given, get user
-      if !assignee.nil?
-        assignee = Asana::User.find workspace, assignee
+      if assignee
+        assignee = Asana::User.find(workspace, assignee)
         abort "Assignee not found" unless assignee
       end
 
-      # add task to workspace
       params = {
         "workspace" => workspace.id,
         "name" => name,
-        "assignee" => (assignee.nil?) ? "me" : assignee.id
+        "assignee" => assignee.nil? ? "me" : assignee.id
       }
 
-      # attach due date if given
-      if !due.nil?
+      if due
         params["due_on"] = due
       end
 
-      # add task to workspace
-      Asana.post "tasks", params
+      Asana.api.post "tasks", params
     end
 
     # comment on a task
     def self.comment(id, text)
-      Asana.post "tasks/#{id}/stories", { "text" => text }
+      Asana.api.post "tasks/#{id}/stories", { "text" => text }
     end
 
     # comment on the current task
@@ -51,7 +49,7 @@ module Asana
 
     # finish a task
     def self.finish(id)
-      Asana.put "tasks/#{id}", { "completed" => true }
+      Asana.api.put "tasks/#{id}", { "completed" => true }
     end
 
     # finish the current task
@@ -60,7 +58,7 @@ module Asana
     end
 
     def to_s
-      "(#{self.id}) #{self.name}"
+      "#{self.id} - #{self.name}"
     end
   end
 

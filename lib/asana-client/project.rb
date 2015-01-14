@@ -36,7 +36,7 @@ module Asana
         lookup += "&completed_since=now"
       end
 
-      task_objects = Asana.get lookup
+      task_objects = Asana.api.get lookup
 
       task_objects["data"].map do |task|
         if mine and (task["assignee"] == nil or task["assignee"]["id"] != mine)

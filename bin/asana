@@ -2,5 +2,5 @@
 
 require 'asana-client'
 
-Asana.init
-Asana.parse ARGV
+asana = Asana::CLI.new
+asana.parse ARGV

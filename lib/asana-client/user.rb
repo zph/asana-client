@@ -3,8 +3,8 @@ module Asana
     attr_accessor :id, :name
 
     def initialize(hash)
-      self.id = hash[:id] || 0
-      self.name = hash[:name] || ""
+      @id = hash.fetch(:id) { 0 }
+      @name = hash.fetch(:name){ "" }
     end
 
     def self.find(workspace, name)
@@ -14,12 +14,9 @@ module Asana
       end
 
       # check if any workspace contains the given name, and return first hit
-      name.downcase!
       workspace.users.find do |user|
-        user.name.downcase.include? name
+        user.name.downcase == name.downcase
       end
-
-      nil
     end
 
     def to_s

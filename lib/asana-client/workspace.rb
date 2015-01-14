@@ -11,15 +11,13 @@ module Asana
     def self.find(name)
       # check if any workspace contains the given name, and return first hit
       Asana.workspaces.find do |workspace|
-        workspace.name.downcase.include? name.downcase
+        workspace.name.downcase == name.downcase
       end
-
-      nil
     end
 
     # get all projects associated with a workspace
     def projects
-      project_objects = Asana.get "projects?workspace=#{self.id}"
+      project_objects = Asana.api.get "projects?workspace=#{self.id}"
 
       project_objects["data"].map do |project|
         Project.new :id => project["id"], :name => project["name"], :workspace => self
@@ -35,7 +33,7 @@ module Asana
       if not completed
         lookup += "&completed_since=now"
       end
-      task_objects = Asana.get lookup
+      task_objects = Asana.api.get lookup
 
       task_objects["data"].map do |task|
         Task.new :id => task["id"], :name => task["name"], :workspace => self
@@ -44,7 +42,7 @@ module Asana
 
     # get all users in the workspace
     def users
-      user_objects = Asana.get "workspaces/#{self.id}/users"
+      user_objects = Asana.api.get "workspaces/#{self.id}/users"
 
       user_objects["data"].map do |user|
         User.new :id => user["id"], :name => user["name"]
