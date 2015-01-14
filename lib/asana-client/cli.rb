@@ -153,6 +153,9 @@ module Asana
 
     # parse argumens
     def parse(args)
+      default_flags = ENV.fetch('ASANA_FLAGS'){ "" }.split(" ")
+
+      args.unshift(*default_flags)
       # no arguments given
       opts = OptionParser.new do |opts|
         opts.on("-c", "--[no-]completed", "Show completed") do |v|
